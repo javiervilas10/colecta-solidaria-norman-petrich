@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Colecta Solidaria Norman PETRICH</title>
+<style>
+body{font-family:Arial,sans-serif;background:#f1f5f9;margin:0;color:#172033}
+header{background:#146c54;color:white;text-align:center;padding:28px 15px}
+main{max-width:650px;margin:auto;padding:16px}
+section{background:white;padding:22px;margin:16px 0;border-radius:16px;box-shadow:0 2px 8px #0001}
+h1{font-size:25px}h2{font-size:20px}
+button{background:#146c54;color:white;border:0;border-radius:9px;padding:13px;margin:5px;cursor:pointer;font-size:16px}
+button:disabled{opacity:.5}
+input{box-sizing:border-box;width:100%;padding:12px;margin:8px 0;border:1px solid #bbb;border-radius:8px}
+.total{font-size:36px;color:#146c54;font-weight:bold}
+small{color:#666}
+li{padding:9px;border-bottom:1px solid #eee}
+.warning{background:#fff3d4;padding:12px;border-radius:8px}
+</style>
+</head>
+<body>
+<header>
+<h1>❤️ Colecta Solidaria Norman PETRICH</h1>
+<p>Un pequeño aporte puede hacer una gran diferencia</p>
+</header>
+<main>
+<section>
+<div class="warning">MODO DEMOSTRACIÓN: no realices transferencias reales. Los datos se guardan solamente en este navegador.</div>
+<h2>Recaudación del mes</h2>
+<div class="total" id="total">$0</div>
+<p id="cantidad">0 contribuyentes</p>
+<p id="historico"></p>
+</section>
+<section>
+<h2>Realizar una donación</h2>
+<p>Elegí un importe:</p>
+<button onclick="elegir(5000)">$5.000</button>
+<button onclick="elegir(10000)">$10.000</button>
+<p id="elegido">Importe sin seleccionar</p>
+<input id="nombre" placeholder="Nombre y apellido">
+<label>
+<input id="consentimiento" type="checkbox" style="width:auto">
+Autorizo a publicar mi nombre y el monto donado.
+</label>
+<p><b>Titular:</b> Norman PETRICH</p>
+<p><b>Alias:</b> Rastro.toque.refran</p>
+<button onclick="copiar()">Copiar alias</button>
+<button onclick="registrar()">Registrar donación de prueba</button>
+</section>
+<section>
+<h2>Contribuyentes confirmados</h2>
+<ul id="lista"></ul>
+</section>
+<section>
+<h2>Administración de prueba</h2>
+<p>Esta sección es una simulación, sin seguridad bancaria.</p>
+<input id="correo" placeholder="Correo de prueba">
+<input id="clave" type="password" placeholder="Contraseña de prueba">
+<button onclick="ingresar()">Ingresar</button>
+<div id="panel" hidden>
+<h3>Donaciones pendientes</h3>
+<div id="pendientes"></div>
+</div>
+</section>
+</main>
+<script>
+const KEY="norman_demo_v1";
+let donaciones=JSON.parse(localStorage.getItem(KEY)||"[]");
+let importe=0;
+let autorizado=false;
+const dinero=n=>"$"+n.toLocaleString("es-AR");
+function guardar(){
+ localStorage.setItem(KEY,JSON.stringify(donaciones));
+ mostrar();
+}
+function elegir(n){
+ importe=n;
+ document.getElementById("elegido").textContent="Elegiste "+dinero(n);
+}
+function copiar(){
+ navigator.clipboard.writeText("Rastro.toque.refran")
+ .then(()=>alert("Alias copiado"))
+ .catch(()=>alert("Alias: Rastro.toque.refran"));
+}
+function registrar(){
+ const nombre=document.getElementById("nombre").value.trim();
+ if(!nombre||!importe){alert("Ingresá tu nombre y elegí un importe");return}
+ donaciones.push({
+ id:Date.now()+Math.random(),
+ nombre:nombre,
+ monto:importe,
+ publico:document.getElementById("consentimiento").checked,
+ fecha:new Date().toISOString(),
+ estado:"pendiente"
+ });
+ guardar();
+ document.getElementById("nombre").value="";
+ document.getElementById("consentimiento").checked=false;
+ alert("Donación ficticia registrada. Falta su aprobación.");
+}
+function ingresar(){
+ if(document.getElementById("correo").value.trim().toLowerCase()==="javiervilas3@yahoo.com.ar" &&
+ document.getElementById("clave").value==="1234"){
+ autorizado=true;
+ document.getElementById("panel").hidden=false;
+ mostrar();
+ }else alert("Datos de demostración incorrectos");
+}
+function aprobar(id){
+ if(!autorizado)return;
+ const d=donaciones.find(x=>x.id===id);
+ if(d&&d.estado==="pendiente"){
+ d.estado="aprobada";
+ guardar();
+ }
+}
+function rechazar(id){
+ if(!autorizado)return;
+ const d=donaciones.find(x=>x.id===id);
+ if(d&&d.estado==="pendiente"){
+ d.estado="rechazada";
+ guardar();
+ }
+}
+function mostrar(){
+ const aprobadas=donaciones.filter(x=>x.estado==="aprobada");
+ const mes=new Date().toISOString().slice(0,7);
+ const actuales=aprobadas.filter(x=>x.fecha.slice(0,7)===mes);
+ const total=actuales.reduce((s,x)=>s+x.monto,0);
+ document.getElementById("total").textContent=dinero(total);
+ document.getElementById("cantidad").textContent=
+ new Set(actuales.map(x=>x.nombre.trim().toLowerCase())).size+
+ " contribuyentes este mes";
+ document.getElementById("historico").textContent=
+ "Total histórico: "+dinero(aprobadas.reduce((s,x)=>s+x.monto,0));
+ const lista=document.getElementById("lista");
+ lista.replaceChildren();
+ actuales.forEach(d=>{
+ const li=document.createElement("li");
+ li.textContent=(d.publico?d.nombre:"Donante anónimo")+" — "+dinero(d.monto);
+ lista.appendChild(li);
+ });
+ const pendientes=document.getElementById("pendientes");
+ pendientes.replaceChildren();
+ if(!autorizado)return;
+ donaciones.filter(x=>x.estado==="pendiente").forEach(d=>{
+ const p=document.createElement("p");
+ p.textContent=d.nombre+" — "+dinero(d.monto)+" ";
+ const a=document.createElement("button");
+ a.textContent="Aprobar";
+ a.onclick=()=>aprobar(d.id);
+ const r=document.createElement("button");
+ r.textContent="Rechazar";
+ r.onclick=()=>rechazar(d.id);
+ p.append(a,r);
+ pendientes.appendChild(p);
+ });
+}
+mostrar();
+</script>
+</body>
+</html>

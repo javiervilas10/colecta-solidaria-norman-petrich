@@ -15,7 +15,7 @@
     const url = "https://ywlfksepetmdgnibmvwr.supabase.co";
     const clave = "sb_publishable_vFirVXhQgLM9Z33VSwkGmg_fga2AmZH";
 
-    fetch(url + "/rest/v1/", {
+    fetch(url + "/rest/v1/donaciones?select=id&limit=1", {
       headers: { "apikey": clave }
     })
     .then(respuesta => {

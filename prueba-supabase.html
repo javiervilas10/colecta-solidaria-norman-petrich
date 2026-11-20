@@ -1,0 +1,31 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Colecta Solidaria - Prueba</title>
+</head>
+<body>
+  <h1>Colecta Solidaria Norman PETRICH</h1>
+  <p>Con un cafecito por mes podemos hacer la diferencia.</p>
+  <p id="estado">Comprobando conexión...</p>
+
+  <script>
+    const url = "https://ywlfksepetmdgnibmvwr.supabase.co";
+    const clave = "sb_publishable_vFirVXhQgLM9Z33VSwkGmg_fga2AmZH";
+
+    fetch(url + "/rest/v1/", {
+      headers: { "apikey": clave }
+    })
+    .then(respuesta => {
+      document.getElementById("estado").textContent =
+        "Servidor respondió: " + respuesta.status;
+    })
+    .catch(() => {
+      document.getElementById("estado").textContent =
+        "No se pudo establecer la conexión.";
+    });
+  </script>
+</body>
+</html>

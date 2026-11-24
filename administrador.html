@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Colecta Solidaria - Administrador</title>
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #f4f7f6;
+  margin: 0;
+  padding: 25px;
+  color: #243b36;
+}
+main {
+  max-width: 750px;
+  margin: auto;
+}
+section, article {
+  background: white;
+  padding: 24px;
+  border-radius: 12px;
+  margin-bottom: 18px;
+}
+input, button {
+  box-sizing: border-box;
+  padding: 14px;
+  margin: 6px 0;
+  border-radius: 8px;
+  font-size: 16px;
+}
+input {
+  width: 100%;
+  border: 1px solid #ccc;
+}
+button {
+  background: #087f72;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+button:disabled {
+  opacity: .5;
+}
+[hidden] {
+  display: none !important;
+}
+</style>
+</head>
+<body>
+<main>
+<h1>Colecta Solidaria Norman PETRICH</h1>
+<p>Panel privado de administracion</p>
+<p>VERSION DE PRUEBA - No aprobar transferencias reales.</p>
+
+<section id="acceso">
+<h2>Iniciar sesion</h2>
+<form id="formulario">
+<label>Correo electronico</label>
+<input id="correo" type="email" autocomplete="username" required>
+<label>Contrasena personal</label>
+<input id="clave" type="password" autocomplete="current-password" required>
+<button id="entrar" type="submit">Ingresar</button>
+</form>
+</section>
+
+<section id="panel" hidden>
+<h2>Aportes pendientes</h2>
+<button id="actualizar">Actualizar</button>
+<button id="salir">Cerrar sesion</button>
+<div id="lista"></div>
+</section>
+
+<p id="mensaje" role="status"></p>
+</main>
+
+<script>
+const url = "https://ywlfksepetmdgnibmvwr.supabase.co";
+const publica = "sb_publishable_vFirVXhQgLM9Z33VSwkGmg_fga2AmZH";
+
+let token = null;
+
+const el = id => document.getElementById(id);
+const mensaje = texto => el("mensaje").textContent = texto;
+
+async function pedir(ruta, opciones = {}) {
+  const respuesta = await fetch(url + ruta, {
+    ...opciones,
+    headers: {
+      apikey: publica,
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: "Bearer " + token } : {}),
+      ...opciones.headers
+    }
+  });
+
+  if (!respuesta.ok) {
+    throw new Error("Respuesta del servidor: " + respuesta.status);
+  }
+
+  const texto = await respuesta.text();
+  return texto ? JSON.parse(texto) : null;
+}
+
+function cerrarPanel() {
+  token = null;
+  el("panel").hidden = true;
+  el("acceso").hidden = false;
+  el("lista").replaceChildren();
+  el("clave").value = "";
+}
+
+el("formulario").onsubmit = async evento => {
+  evento.preventDefault();
+  el("entrar").disabled = true;
+  mensaje("Verificando acceso...");
+
+  try {
+    const datos = await pedir("/auth/v1/token?grant_type=password", {
+      method: "POST",
+      body: JSON.stringify({
+        email: el("correo").value.trim(),
+        password: el("clave").value
+      })
+    });
+
+    token = datos.access_token;
+    el("clave").value = "";
+
+    const administradores = await pedir(
+      "/rest/v1/administradores?select=usuario_id"
+    );
+
+    if (!administradores.some(a => a.usuario_id === datos.user.id)) {
+      throw new Error("Usuario no autorizado.");
+    }
+
+    el("acceso").hidden = true;
+    el("panel").hidden = false;
+    mensaje("Acceso autorizado.");
+    await cargar();
+
+  } catch (error) {
+    cerrarPanel();
+    mensaje("No se pudo ingresar. " + error.message);
+  } finally {
+    el("entrar").disabled = false;
+  }
+};
+
+async function cargar() {
+  if (!token) return;
+
+  try {
+    const datos = await pedir(
+      "/rest/v1/donaciones?select=id,nombre_donante,importe,estado,identificador_donante&estado=eq.pendiente&identificador_donante=like.PRUEBA-WEB-*&order=created_at.desc"
+    );
+
+    el("lista").replaceChildren();
+
+    if (!datos.length) {
+      el("lista").textContent = "No hay aportes ficticios pendientes.";
+      return;
+    }
+
+    for (const aporte of datos) {
+      const tarjeta = document.createElement("article");
+      const titulo = document.createElement("h3");
+      titulo.textContent = aporte.nombre_donante;
+
+      const detalle = document.createElement("p");
+      detalle.textContent = "$" +
+        Number(aporte.importe).toLocaleString("es-AR") +
+        " - Pendiente - Registro de prueba";
+
+      const boton = document.createElement("button");
+      boton.textContent = "Aprobar aporte ficticio";
+      boton.onclick = () => aprobar(aporte.id, boton);
+
+      tarjeta.append(titulo, detalle, boton);
+      el("lista").append(tarjeta);
+    }
+  } catch (error) {
+    mensaje("No se pudo consultar. " + error.message);
+  }
+}
+
+async function aprobar(id, boton) {
+  if (!token) return;
+  if (!confirm("Confirmar solamente este aporte ficticio?")) return;
+
+  boton.disabled = true;
+
+  try {
+    const resultado = await pedir(
+      "/rest/v1/donaciones?id=eq." + encodeURIComponent(id) +
+      "&estado=eq.pendiente&identificador_donante=like.PRUEBA-WEB-*",
+      {
+        method: "PATCH",
+        headers: { Prefer: "return=representation" },
+        body: JSON.stringify({
+          estado: "aprobado",
+          fecha_aprobacion: new Date().toISOString()
+        })
+      }
+    );
+
+    if (!resultado || resultado.length !== 1) {
+      throw new Error("No se confirmo la modificacion.");
+    }
+
+    mensaje("Aporte ficticio aprobado correctamente.");
+    await cargar();
+  } catch (error) {
+    mensaje(error.message);
+    boton.disabled = false;
+  }
+}
+
+el("actualizar").onclick = cargar;
+
+el("salir").onclick = async () => {
+  try {
+    await pedir("/auth/v1/logout", { method: "POST" });
+  } catch (error) {
+    // Se descarta igualmente la sesion local.
+  } finally {
+    cerrarPanel();
+    mensaje("Sesion cerrada en este navegador.");
+  }
+};
+</script>
+</body>
+</html>

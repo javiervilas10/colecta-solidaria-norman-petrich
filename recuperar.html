@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Recuperar contraseña</title>
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #f4f7f6;
+  padding: 25px;
+  color: #243b36;
+}
+main {
+  max-width: 450px;
+  margin: auto;
+  background: white;
+  padding: 25px;
+  border-radius: 15px;
+}
+input, button {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 14px;
+  margin: 10px 0;
+  border-radius: 8px;
+  font-size: 16px;
+}
+input {
+  border: 1px solid #aaa;
+}
+button {
+  background: #087f72;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+button:disabled {
+  opacity: .5;
+}
+</style>
+</head>
+<body>
+<main>
+<h2>Colecta Solidaria Norman PETRICH</h2>
+<h3>Restablecer contraseña</h3>
+
+<p id="mensaje" role="status">Verificando enlace...</p>
+
+<form id="formulario" hidden>
+<label>Nueva contraseña</label>
+<input id="clave" type="password"
+autocomplete="new-password" minlength="12" required>
+
+<label>Repetir nueva contraseña</label>
+<input id="repetir" type="password"
+autocomplete="new-password" minlength="12" required>
+
+<button id="guardar" type="submit">
+Guardar nueva contraseña
+</button>
+</form>
+
+<a id="ingresar" href="./administrador.html" hidden>
+Ir al panel de administración
+</a>
+</main>
+
+<script>
+const url = "https://ywlfksepetmdgnibmvwr.supabase.co";
+const publica = "sb_publishable_vFirVXhQgLM9Z33VSwkGmg_fga2AmZH";
+
+const parametros = new URLSearchParams(
+  location.hash.slice(1)
+);
+
+let token = parametros.get("access_token");
+
+const mensaje = document.getElementById("mensaje");
+const formulario = document.getElementById("formulario");
+const guardar = document.getElementById("guardar");
+
+const recuperacion = parametros.get("type") === "recovery";
+
+history.replaceState(null, "", location.pathname);
+
+if (token && recuperacion) {
+  mensaje.textContent =
+    "Elegí una contraseña de al menos 12 caracteres.";
+  formulario.hidden = false;
+} else {
+  token = null;
+  mensaje.textContent =
+    "El enlace no es válido o ha vencido. Solicitá uno nuevo.";
+}
+
+formulario.onsubmit = async evento => {
+  evento.preventDefault();
+
+  const clave = document.getElementById("clave").value;
+  const repetir = document.getElementById("repetir").value;
+
+  if (clave !== repetir) {
+    mensaje.textContent = "Las contraseñas no coinciden.";
+    return;
+  }
+
+  if (clave.length < 12 || !token) return;
+
+  guardar.disabled = true;
+  mensaje.textContent = "Actualizando contraseña...";
+
+  try {
+    const respuesta = await fetch(url + "/auth/v1/user", {
+      method: "PUT",
+      headers: {
+        apikey: publica,
+        Authorization: "Bearer " + token,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ password: clave })
+    });
+
+    if (!respuesta.ok) {
+      throw new Error("No se pudo actualizar la contraseña.");
+    }
+
+    token = null;
+    formulario.reset();
+    formulario.hidden = true;
+    mensaje.textContent =
+      "Contraseña actualizada correctamente.";
+    document.getElementById("ingresar").hidden = false;
+
+  } catch (error) {
+    mensaje.textContent = error.message;
+    guardar.disabled = false;
+  }
+};
+</script>
+</body>
+</html>
